@@ -85,3 +85,22 @@ func TestHeadCommandFiveLines(t *testing.T) {
 		}
 	}
 }
+
+func TestHeadMultipleFiles(t *testing.T) {
+
+	cmd := exec.Command("./cchead", testFiles...)
+	got, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("Command %s failed with error: %v, got: %s", cmd.String(), err, string(got))
+	}
+
+	unixCmd := exec.Command("head", testFiles...)
+	want, err := unixCmd.Output()
+	if err != nil {
+		t.Fatalf("Command failed with error: %v", err)
+	}
+
+	if string(got) != string(want) {
+		t.Errorf("\tEXPECTED: %q\n\tGOT: %q\n", string(want), string(got))
+	}
+}
