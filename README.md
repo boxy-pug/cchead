@@ -1,6 +1,6 @@
-# cchead – Head Clone
+# cchead
 
-This is a simple Go implementation of the Unix `head` command, created as part of a coding challenge on [Coding Challenges](https://codingchallenges.fyi/challenges/challenge-head).
+cchead is a simple Go implementation of the Unix `head` command, created as part of a coding challenge on [Coding Challenges](https://codingchallenges.fyi/challenges/challenge-head).
 
 ## Features
 
@@ -16,19 +16,19 @@ This is a simple Go implementation of the Unix `head` command, created as part o
 
 ### Examples
 
--  Print the first 10 lines of `file1.txt`:
+-  Print the first 10 lines of `./testdata/test.txt`:
   ```bash
-  go run main.go -n 10 file1.txt
+  ./cchead -n 10 ./testdata/test.txt
   ```
 
--  Print the first 100 bytes of `file1.txt`:
+-  Print the first 100 bytes of `./testdata/test.txt`:
   ```bash
-  go run main.go -c 100 file1.txt
+  ./cchead -c 100 ./testdata/test.txt
   ```
 
--  Print the first 5 lines of `file1.txt` and `file2.txt`:
+-  Print the first 5 lines of `./testdata/test.txt` and `./testdata/test2.txt`:
   ```bash
-  go run main.go -n 5 file1.txt file2.txt
+  ./cchead -n 5 ./testdata/test.txt ./testdata/test2.txt
   ```
 
 ## Requirements
