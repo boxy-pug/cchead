@@ -7,45 +7,79 @@ import (
 	"os"
 )
 
-// var lines int
-// var numLines = flag.IntVar(&lines, "n", 10, "define how many lines to print")
-var numLines = flag.Int("n", 10, "define line num")
+type headObj struct {
+	inputFiles    []*os.File
+	numLines      int
+	numBytes      int
+	lineFlag      bool
+	byteFlag      bool
+	multipleFiles bool
+}
 
 func main() {
+
+	var numLines int
+	var numBytes int
+	flag.IntVar(&numLines, "n", 10, "number of lines to print")
+	flag.IntVar(&numBytes, "c", 0, "number of bytes to print")
+
 	flag.Parse()
-	var input *os.File
-	var err error
+	remainingArgs := flag.Args()
 
-	if len(os.Args) == 2 {
-		input, err = os.Open(os.Args[1])
-		if err != nil {
-			fmt.Printf("%v", err)
-			os.Exit(1)
-		}
-
-	} else if len(os.Args) > 2 {
-		input, err = os.Open(os.Args[3])
-		if err != nil {
-			fmt.Printf("%v", err)
-			os.Exit(1)
-		}
-	} else {
-		input = os.Stdin
+	ho := headObj{
+		numLines:      numLines,
+		numBytes:      numBytes,
+		lineFlag:      true,
+		multipleFiles: false,
 	}
 
-	getHead(input, *numLines)
+	if len(remainingArgs) > 1 {
+		ho.multipleFiles = true
+	}
+
+	if ho.numBytes > 0 || ho.numLines == 10 {
+		ho.lineFlag = false
+		ho.byteFlag = true
+	}
+
+	for _, file := range remainingArgs {
+		openFile, err := os.Open(file)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ho.inputFiles = append(ho.inputFiles, openFile)
+	}
+
+	ho.getHead()
 
 }
 
-func getHead(input *os.File, lines int) {
-	scanner := bufio.NewScanner(input)
-	i := 0
+func (ho *headObj) getHead() {
+	for i, file := range ho.inputFiles {
+		scanner := bufio.NewScanner(file)
+		num := 0
+		if ho.multipleFiles {
+			fmt.Printf("==> %s <==\n", file.Name())
+		}
 
-	for scanner.Scan() {
-		fmt.Println(scanner.Text())
-		i += 1
-		if i == lines {
-			break
+		if ho.byteFlag {
+			scanner.Split(bufio.ScanBytes)
+		}
+
+		for scanner.Scan() {
+			fmt.Printf("%s", scanner.Text())
+			if ho.lineFlag {
+				fmt.Println()
+			}
+			num += 1
+			if (ho.lineFlag && num == ho.numLines) || (ho.byteFlag && num == ho.numBytes) {
+				break
+			}
+
+		}
+		if ho.multipleFiles && i < len(ho.inputFiles)-1 {
+			fmt.Println()
 		}
 
 	}
