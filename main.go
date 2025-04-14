@@ -37,7 +37,7 @@ func main() {
 		ho.multipleFiles = true
 	}
 
-	if ho.numBytes > 0 || ho.numLines == 10 {
+	if ho.numBytes > 0 && ho.numLines == 10 {
 		ho.lineFlag = false
 		ho.byteFlag = true
 	}
@@ -63,16 +63,19 @@ func (ho *headObj) getHead() {
 			fmt.Printf("==> %s <==\n", file.Name())
 		}
 
-		if ho.byteFlag {
-			scanner.Split(bufio.ScanBytes)
-		}
+		scanner.Split(bufio.ScanBytes)
 
 		for scanner.Scan() {
-			fmt.Printf("%s", scanner.Text())
-			if ho.lineFlag {
-				fmt.Println()
+			curByte := scanner.Text()
+			fmt.Printf("%s", curByte)
+
+			if ho.lineFlag && (curByte == "\n" || curByte == "\r\n") {
+				num += 1
 			}
-			num += 1
+			if ho.byteFlag {
+				num += 1
+			}
+
 			if (ho.lineFlag && num == ho.numLines) || (ho.byteFlag && num == ho.numBytes) {
 				break
 			}
@@ -81,7 +84,5 @@ func (ho *headObj) getHead() {
 		if ho.multipleFiles && i < len(ho.inputFiles)-1 {
 			fmt.Println()
 		}
-
 	}
-
 }
