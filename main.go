@@ -4,85 +4,140 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 )
 
-type headObj struct {
-	inputFiles    []*os.File
-	numLines      int
-	numBytes      int
-	lineFlag      bool
-	byteFlag      bool
+type command struct {
+	files         []inputFile
+	output        io.Writer
+	lines         int
+	bytes         int
+	useLines      bool
+	useBytes      bool
 	multipleFiles bool
+	stdIn         bool
+}
+
+type inputFile struct {
+	name   string
+	reader io.Reader
 }
 
 func main() {
-
-	var numLines int
-	var numBytes int
-	flag.IntVar(&numLines, "n", 10, "number of lines to print")
-	flag.IntVar(&numBytes, "c", 0, "number of bytes to print")
-
-	flag.Parse()
-	remainingArgs := flag.Args()
-
-	ho := headObj{
-		numLines:      numLines,
-		numBytes:      numBytes,
-		lineFlag:      true,
-		multipleFiles: false,
+	cmd, cleanup, err := loadCommand()
+	if err != nil {
+		fmt.Println("error loading command:", err)
+		os.Exit(1)
 	}
+	defer cleanup()
 
-	if len(remainingArgs) > 1 {
-		ho.multipleFiles = true
+	err = cmd.run()
+	if err != nil {
+		fmt.Fprintln(cmd.output, "error running command:", err)
 	}
-
-	if ho.numBytes > 0 && ho.numLines == 10 {
-		ho.lineFlag = false
-		ho.byteFlag = true
-	}
-
-	for _, file := range remainingArgs {
-		openFile, err := os.Open(file)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		ho.inputFiles = append(ho.inputFiles, openFile)
-	}
-
-	ho.getHead()
-
 }
 
-func (ho *headObj) getHead() {
-	for i, file := range ho.inputFiles {
-		scanner := bufio.NewScanner(file)
-		num := 0
-		if ho.multipleFiles {
-			fmt.Printf("==> %s <==\n", file.Name())
+func loadCommand() (command, func(), error) {
+	cmd := command{
+		// Standard configuration, no flags provided
+		useLines: true,
+		output:   os.Stdout,
+	}
+
+	flag.IntVar(&cmd.lines, "n", 10, "number of lines to print")
+	flag.IntVar(&cmd.bytes, "c", 0, "number of bytes to print")
+
+	flag.Parse()
+	args := flag.Args()
+
+	cleanup := func() {}
+
+	switch {
+	case len(args) == 0:
+		cmd.files = append(cmd.files, inputFile{
+			reader: os.Stdin,
+		})
+		cmd.multipleFiles = false
+		cmd.stdIn = true
+	case len(args) > 0:
+		var files []*os.File
+		for _, a := range args {
+			file, err := os.Open(a)
+			if err != nil {
+				return cmd, cleanup, fmt.Errorf("could not open %v as file, error: %v", a, err)
+			}
+			files = append(files, file)
+			cmd.files = append(cmd.files, inputFile{
+				name:   file.Name(),
+				reader: file,
+			})
+		}
+		cleanup = func() {
+			for _, f := range files {
+				f.Close()
+			}
+		}
+		cmd.multipleFiles = len(args) > 1
+	}
+
+	// Disable line flag when byte flag is enabled
+	if cmd.bytes > 0 && cmd.lines == 10 {
+		cmd.useLines = false
+		cmd.useBytes = true
+	}
+	return cmd, cleanup, nil
+}
+
+func (cmd *command) run() error {
+	for i, file := range cmd.files {
+		if cmd.multipleFiles {
+			fmt.Fprintf(cmd.output, "==> %s <==\n", file.name)
 		}
 
-		scanner.Split(bufio.ScanBytes)
-
-		for scanner.Scan() {
-			curByte := scanner.Text()
-			fmt.Printf("%s", curByte)
-
-			if ho.lineFlag && (curByte == "\n" || curByte == "\r\n") {
-				num += 1
-			}
-			if ho.byteFlag {
-				num += 1
-			}
-
-			if (ho.lineFlag && num == ho.numLines) || (ho.byteFlag && num == ho.numBytes) {
-				break
-			}
-
+		var err error
+		if cmd.useBytes {
+			err = printHeadBytes(file.reader, cmd.output, cmd.bytes)
+		} else {
+			err = printHeadLines(file.reader, cmd.output, cmd.lines)
 		}
-		if ho.multipleFiles && i < len(ho.inputFiles)-1 {
+
+		if err != nil {
+			return fmt.Errorf("error reading %q: %w", file.name, err)
+		}
+
+		// Print space between multiple files
+		if cmd.multipleFiles && i < len(cmd.files)-1 {
 			fmt.Println()
 		}
 	}
+	return nil
+}
+
+func printHeadLines(r io.Reader, w io.Writer, n int) error {
+	reader := bufio.NewReader(r)
+
+	for range n {
+		line, err := reader.ReadBytes('\n')
+
+		if len(line) > 0 {
+			w.Write(line)
+		}
+
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printHeadBytes(r io.Reader, w io.Writer, n int) error {
+	_, err := io.CopyN(w, r, int64(n))
+	if err == io.EOF {
+		return nil
+	}
+	return err
 }

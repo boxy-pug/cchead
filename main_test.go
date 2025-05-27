@@ -27,22 +27,13 @@ func TestHeadCommand(t *testing.T) {
 	for _, testFile := range testFiles {
 		cmd := exec.Command("go", "run", ".", testFile)
 		got, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("Command failed with error: %v", err)
-		}
+		assertNoError(t, err)
 
 		unixCmd := exec.Command("head", testFile)
 		want, err := unixCmd.Output()
-		if err != nil {
-			t.Fatalf("Command failed with error: %v", err)
-		}
+		assertNoError(t, err)
 
-		gotString := string(got)
-		wantString := string(want)
-
-		if gotString != wantString {
-			t.Errorf("\tEXPECTED: %q\n\tGOT: %q\n", wantString, gotString)
-		}
+		assertEqual(t, string(got), string(want))
 	}
 }
 
@@ -50,19 +41,13 @@ func TestHeadCommandBytes(t *testing.T) {
 	for _, testFile := range testFiles {
 		cmd := exec.Command("go", "run", ".", "-c", "30", testFile)
 		got, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("Command failed with error: %v", err)
-		}
+		assertNoError(t, err)
 
 		unixCmd := exec.Command("head", "-c", "30", testFile)
 		want, err := unixCmd.Output()
-		if err != nil {
-			t.Fatalf("Command failed with error: %v", err)
-		}
+		assertNoError(t, err)
 
-		if string(got) != string(want) {
-			t.Errorf("\tEXPECTED: %q\n\tGOT: %q\n", string(want), string(got))
-		}
+		assertEqual(t, string(got), string(want))
 	}
 }
 
@@ -70,37 +55,38 @@ func TestHeadCommandFiveLines(t *testing.T) {
 	for _, testFile := range testFiles {
 		cmd := exec.Command("go", "run", ".", "-n", "5", testFile)
 		got, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("Command failed with error: %v", err)
-		}
+		assertNoError(t, err)
 
 		unixCmd := exec.Command("head", "-n", "5", testFile)
 		want, err := unixCmd.Output()
-		if err != nil {
-			t.Fatalf("Command failed with error: %v", err)
-		}
+		assertNoError(t, err)
 
-		if string(got) != string(want) {
-			t.Errorf("\tEXPECTED: %q\n\tGOT: %q\n", string(want), string(got))
-		}
+		assertEqual(t, string(got), string(want))
 	}
 }
 
 func TestHeadMultipleFiles(t *testing.T) {
-
 	cmd := exec.Command("./cchead", testFiles...)
 	got, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("Command %s failed with error: %v, got: %s", cmd.String(), err, string(got))
-	}
+	assertNoError(t, err)
 
 	unixCmd := exec.Command("head", testFiles...)
 	want, err := unixCmd.Output()
-	if err != nil {
-		t.Fatalf("Command failed with error: %v", err)
-	}
+	assertNoError(t, err)
 
-	if string(got) != string(want) {
+	assertEqual(t, string(got), string(want))
+}
+
+func assertEqual(t testing.TB, got, want string) {
+	t.Helper()
+	if got != want {
 		t.Errorf("\tEXPECTED: %q\n\tGOT: %q\n", string(want), string(got))
+	}
+}
+
+func assertNoError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("did not expect error: %v", err)
 	}
 }
